@@ -1,4 +1,133 @@
-name : This is AI workflow
+# name : This is AI workflow
+
+# on:
+#   pull_request:
+#     types:
+#       - closed
+#     branches:
+#       - main
+
+
+# jobs:
+#   check-release-version:
+#     if: github.event.pull_request.merged == true
+
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
+
+#       - name : Set environment variable
+#         run: |
+#           echo "MERGE_SHA=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_ENV
+#           echo "RELEASE_BRANCH=release/v1.0" >> $GITHUB_ENV
+#           echo "FEATURE_BRANCH=feature/release-v1.0" >> $GITHUB_ENV
+
+#       - name : Fetch all branches
+#         run: |
+#           git fetch origin
+
+
+#       - name: Check release branch
+#         run: |
+
+#           echo "Checking release branch: $RELEASE_BRANCH"
+
+#           if git ls-remote --heads origin $RELEASE_BRANCH | grep $RELEASE_BRANCH
+#           then
+#             echo "Release branch exists"
+#           else
+#             echo "ERROR: Release branch does not exist"
+#             exit 1
+#           fi
+
+#       - name: Create release feature branch
+#         run: |
+
+#           echo "Creating branch: $FEATURE_BRANCH"
+
+#           git checkout -b $FEATURE_BRANCH origin/$RELEASE_BRANCH
+
+#           echo "Current branch:"
+#           git branch
+
+#       - name: Apply main changes excluding .github
+#         run: |
+
+#           echo "Merge commit:"
+#           echo $MERGE_SHA
+
+
+#           echo "Finding changed files..."
+
+#           FILES=$(git diff-tree \
+#           --no-commit-id \
+#           --name-only \
+#           -r \
+#           $MERGE_SHA)
+
+
+#           echo "Changed files:"
+#           echo "$FILES"
+
+
+#           for FILE in $FILES
+#           do
+
+#             if [[ "$FILE" == .github/* ]]
+#             then
+#               echo "Ignoring:"
+#               echo $FILE
+
+#             else
+
+#               echo "Applying:"
+#               echo $FILE
+
+#               git checkout $MERGE_SHA -- $FILE
+
+#             fi
+
+#           done
+
+
+
+#       - name: Commit changes
+#         run: |
+
+#           git status
+
+#           git add .
+
+#           git commit -m "Sync changes from main merge $MERGE_SHA" || echo "No changes to commit"
+
+
+
+#       - name: Push release feature branch
+#         run: |
+
+#           git push origin $FEATURE_BRANCH
+
+#       # - name: Cherry pick merge commit
+#       #   run: |
+
+#       #     echo "Cherry picking commit:"
+#       #     echo $MERGE_SHA
+
+#       #     git cherry-pick -m 1 $MERGE_SHA
+#       #   # Push generated branch
+#       # - name: Push release feature branch
+#       #   run: |
+
+#       #     echo "Pushing branch: $FEATURE_BRANCH"
+
+#       #     git push origin $FEATURE_BRANCH
+
+     
+name: Intelligent Cherry Pick Phase 2
+
 
 on:
   pull_request:
@@ -8,121 +137,174 @@ on:
       - main
 
 
+# Allow workflow to push branches
+permissions:
+  contents: write
+
+
 jobs:
-  check-release-version:
+
+  cherry-pick-release:
+
+    # Run only after PR merge
     if: github.event.pull_request.merged == true
 
+
     runs-on: ubuntu-latest
+
+
     steps:
-      - name: Checkout code
+
+
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name : Set environment variable
+
+
+      - name: Configure variables
         run: |
+
           echo "MERGE_SHA=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_ENV
+
           echo "RELEASE_BRANCH=release/v1.0" >> $GITHUB_ENV
+
           echo "FEATURE_BRANCH=feature/release-v1.0" >> $GITHUB_ENV
 
-      - name : Fetch all branches
-        run: |
-          git fetch origin
 
 
-      - name: Check release branch
+      - name: Fetch all branches
         run: |
 
-          echo "Checking release branch: $RELEASE_BRANCH"
+          git fetch origin --prune
 
-          if git ls-remote --heads origin $RELEASE_BRANCH | grep $RELEASE_BRANCH
+
+
+      - name: Check release branch exists
+        run: |
+
+          echo "Checking release branch:"
+          echo "$RELEASE_BRANCH"
+
+
+          if git ls-remote --heads origin "$RELEASE_BRANCH" | grep "$RELEASE_BRANCH"
           then
-            echo "Release branch exists"
+              echo "Release branch exists"
           else
-            echo "ERROR: Release branch does not exist"
-            exit 1
+              echo "ERROR: Release branch does not exist"
+              exit 1
           fi
 
-      - name: Create release feature branch
+
+
+      - name: Create feature branch from release
         run: |
 
-          echo "Creating branch: $FEATURE_BRANCH"
+          echo "Creating branch:"
+          echo "$FEATURE_BRANCH"
 
-          git checkout -b $FEATURE_BRANCH origin/$RELEASE_BRANCH
+
+          git checkout -b "$FEATURE_BRANCH" "origin/$RELEASE_BRANCH"
+
 
           echo "Current branch:"
           git branch
 
-      - name: Apply main changes excluding .github
+
+
+      - name: Configure git identity
         run: |
 
+          git config --global user.name "github-actions"
+
+          git config --global user.email "github-actions@github.com"
+
+
+
+      - name: Apply changes from main excluding .github
+        shell: bash
+        run: |
+
+
           echo "Merge commit:"
-          echo $MERGE_SHA
+          echo "$MERGE_SHA"
 
 
           echo "Finding changed files..."
+
 
           FILES=$(git diff-tree \
           --no-commit-id \
           --name-only \
           -r \
-          $MERGE_SHA)
+          -m \
+          "$MERGE_SHA")
 
 
           echo "Changed files:"
           echo "$FILES"
 
 
+
+          if [ -z "$FILES" ]
+          then
+              echo "No changed files detected"
+              exit 0
+          fi
+
+
+
           for FILE in $FILES
           do
 
-            if [[ "$FILE" == .github/* ]]
-            then
-              echo "Ignoring:"
-              echo $FILE
+              if [[ "$FILE" == .github/* ]]
+              then
 
-            else
+                  echo "Ignoring workflow file:"
+                  echo "$FILE"
 
-              echo "Applying:"
-              echo $FILE
 
-              git checkout $MERGE_SHA -- $FILE
+              else
 
-            fi
+                  echo "Applying file:"
+                  echo "$FILE"
+
+
+                  git checkout "$MERGE_SHA" -- "$FILE"
+
+              fi
 
           done
+
+
+
+      - name: Check changes
+        run: |
+
+          git status
 
 
 
       - name: Commit changes
         run: |
 
-          git status
 
           git add .
 
-          git commit -m "Sync changes from main merge $MERGE_SHA" || echo "No changes to commit"
+
+          git commit \
+          -m "Sync changes from main merge $MERGE_SHA" \
+          || echo "No changes to commit"
 
 
 
       - name: Push release feature branch
         run: |
 
-          git push origin $FEATURE_BRANCH
 
-      # - name: Cherry pick merge commit
-      #   run: |
+          echo "Pushing branch:"
+          echo "$FEATURE_BRANCH"
 
-      #     echo "Cherry picking commit:"
-      #     echo $MERGE_SHA
 
-      #     git cherry-pick -m 1 $MERGE_SHA
-      #   # Push generated branch
-      # - name: Push release feature branch
-      #   run: |
-
-      #     echo "Pushing branch: $FEATURE_BRANCH"
-
-      #     git push origin $FEATURE_BRANCH
-
-     
+          git push origin "$FEATURE_BRANCH"
