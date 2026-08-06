@@ -2,40 +2,57 @@ name: Intelligent Cherry Pick With AI Analysis
 
 
 on:
+
   pull_request:
+
     types:
       - closed
+
     branches:
       - main
 
 
+
 permissions:
+
   contents: write
+
 
 
 jobs:
 
+
   cherry-pick-release:
+
 
     if: github.event.pull_request.merged == true
 
+
     runs-on: ubuntu-latest
 
+
     env:
+
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
 
 
     steps:
 
 
+
     - name: Checkout repository
+
       uses: actions/checkout@v4
+
       with:
+
         fetch-depth: 0
 
 
 
     - name: Configure variables
+
       run: |
 
         echo "MERGE_SHA=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_ENV
@@ -47,33 +64,47 @@ jobs:
 
 
     - name: Fetch branches
+
       run: |
 
         git fetch origin --prune
 
 
 
-    - name: Check release branch
+    - name: Check release branch exists
+
       shell: bash
+
       run: |
 
-        echo "Checking:"
+
+        echo "Checking release branch"
+
         echo "$RELEASE_BRANCH"
 
 
+
         if git ls-remote --heads origin "$RELEASE_BRANCH" | grep "$RELEASE_BRANCH"
+
         then
-            echo "Release branch exists"
+
+          echo "Release branch exists"
+
         else
-            echo "Release branch missing"
-            exit 1
+
+          echo "ERROR: Release branch does not exist"
+
+          exit 1
+
         fi
 
 
 
 
     - name: Create or checkout feature branch
+
       shell: bash
+
       run: |
 
 
@@ -81,20 +112,28 @@ jobs:
 
 
         if git ls-remote --heads origin "$FEATURE_BRANCH" | grep "$FEATURE_BRANCH"
+
         then
 
-            echo "Feature branch exists"
 
-            git checkout "$FEATURE_BRANCH"
+          echo "Feature branch exists"
 
-            git pull origin "$FEATURE_BRANCH"
+
+          git checkout "$FEATURE_BRANCH"
+
+          git pull origin "$FEATURE_BRANCH"
+
 
 
         else
 
-            echo "Creating feature branch"
 
-            git checkout -b "$FEATURE_BRANCH" "origin/$RELEASE_BRANCH"
+          echo "Creating feature branch"
+
+
+          git checkout -b "$FEATURE_BRANCH" "origin/$RELEASE_BRANCH"
+
+
 
         fi
 
@@ -104,8 +143,11 @@ jobs:
 
 
 
-    - name: Configure git user
+
+    - name: Configure git identity
+
       run: |
+
 
         git config user.name "github-actions"
 
@@ -114,12 +156,16 @@ jobs:
 
 
 
-    - name: Extract changed files from merge commit
+
+    - name: Extract changed files
+
       shell: bash
+
       run: |
 
 
-        echo "Merge commit:"
+        echo "Merge commit"
+
         echo "$MERGE_SHA"
 
 
@@ -142,37 +188,18 @@ jobs:
 
 
 
-    # - name: Prepare AI analysis
-    #   shell: bash
-    #   run: |
 
 
-    #     echo "Preparing AI input"
-
-
-
-    #     git diff \
-    #     origin/$RELEASE_BRANCH \
-    #     $MERGE_SHA \
-    #     -- \
-    #     ':!.github/*' \
-    #     > ai_analysis.patch
-
-
-
-    #     echo "===== Changed Files ====="
-
-    #     cat changed_files.txt
-
-
-    #     echo "===== Diff ====="
-
-    #     cat ai_analysis.patch
     - name: Prepare AI analysis
+
       shell: bash
+
       run: |
 
+
         echo "Preparing AI input"
+
+
 
         git diff \
         origin/$RELEASE_BRANCH \
@@ -181,269 +208,350 @@ jobs:
         ':!.github/*' \
         > ai_analysis.patch
 
-        echo "===== Changed Files ====="
+
+
+
+        echo "Loading AI prompt from merge commit"
+
+
+
+        git show "$MERGE_SHA:ai/prompts/decision.md" > ai_prompt.md
+
+
+
+
+        echo "Loading AI schema from merge commit"
+
+
+
+        git show "$MERGE_SHA:ai/schemas/decision-schema.json" > ai_schema.json
+
+
+
+
+
+        echo "============================"
+
+        echo "Changed files"
+
         cat changed_files.txt
 
-        echo "===== Diff ====="
+
+
+        echo "============================"
+
+        echo "AI Prompt"
+
+        cat ai_prompt.md
+
+
+
+        echo "============================"
+
+        echo "AI Schema"
+
+        cat ai_schema.json
+
+
+
+        echo "============================"
+
+        echo "Diff"
+
         cat ai_analysis.patch
 
-        echo "===== Loading AI Prompt ====="
-        cat ai/prompts/decision.md
-
-        echo "===== Loading AI Schema ====="
-        cat ai/schemas/decision-schema.json
 
 
 
-    # - name: Gemini AI Analysis
-    #   shell: bash
-    #   run: |
-
-
-    #     python3 <<EOF
-
-    #     import os
-    #     import json
-    #     import requests
-
-
-    #     with open("changed_files.txt") as f:
-    #         files=f.read()
-
-
-    #     with open("ai_analysis.patch") as f:
-    #         diff=f.read()
-
-
-
-    #     prompt=f"""
-
-    #     You are a senior software engineer reviewing a release sync.
-
-
-    #     Source:
-    #     main
-
-
-    #     Target:
-    #     release/v1.0
-
-
-    #     Changed files:
-
-    #     {files}
-
-
-    #     Git diff:
-
-    #     {diff}
-
-
-
-    #     Analyze:
-
-    #     1. Changed files
-    #     2. Functions/classes modified
-    #     3. Compatibility issues
-    #     4. Conflict possibilities
-    #     5. Safe to apply or not
-
-
-    #     Return JSON only:
-
-
-    #     {{
-    #       "safe_to_apply": true,
-    #       "conflicts": false,
-    #       "changed_files": [],
-    #       "summary": "",
-    #       "warnings": []
-    #     }}
-
-    #     """
-
-
-
-    #     response=requests.post(
-
-    #       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-
-    #       params={
-    #         "key":os.environ["GEMINI_API_KEY"]
-    #       },
-
-    #       headers={
-    #         "Content-Type":"application/json"
-    #       },
-
-    #       json={
-
-    #         "contents":[
-    #           {
-    #             "parts":[
-    #               {
-    #                 "text":prompt
-    #               }
-    #             ]
-    #           }
-    #         ]
-
-    #       }
-
-    #     )
-
-
-
-    #     print("====================")
-
-    #     print(response.text)
-
-    #     print("====================")
-
-
-    #     EOF
 
     - name: Gemini AI Decision Engine
+
       shell: bash
+
       run: |
 
+
         python3 <<EOF
+
 
         import os
         import json
         import requests
         import re
 
-        with open("ai/prompts/decision.md") as f:
-            system_prompt = f.read()
 
-        with open("ai/schemas/decision-schema.json") as f:
-            schema = f.read()
+
+
+        with open("ai_prompt.md") as f:
+
+            prompt_file=f.read()
+
+
+
+        with open("ai_schema.json") as f:
+
+            schema=f.read()
+
+
 
         with open("changed_files.txt") as f:
-            files = f.read()
+
+            files=f.read()
+
+
 
         with open("ai_analysis.patch") as f:
-            patch = f.read()
+
+            diff=f.read()
 
 
-        final_prompt = f"""
-        {system_prompt}
 
-        ========================================
 
-        Expected JSON Schema
+
+        prompt=f"""
+
+
+        {prompt_file}
+
+
+
+        Expected JSON:
 
         {schema}
 
-        ========================================
 
-        Source Branch
+
+        Source Branch:
 
         main
 
-        Target Branch
 
-        release/v1.0
 
-        ========================================
+        Target Branch:
 
-        Changed Files
+        {os.environ['RELEASE_BRANCH']}
+
+
+
+        Changed Files:
 
         {files}
 
-        ========================================
 
-        Git Patch
 
-        {patch}
+        Git Diff:
+
+        {diff}
+
+
+
+        Return JSON only.
+
         """
 
-        response = requests.post(
 
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
 
-            params={
-                "key": os.environ["GEMINI_API_KEY"]
-            },
 
-            headers={
-                "Content-Type":"application/json"
-            },
 
-            json={
-                "contents":[
-                    {
-                        "parts":[
-                            {
-                                "text": final_prompt
-                            }
-                        ]
-                    }
-                ]
-            }
+        response=requests.post(
+
+
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+
+
+        params={
+
+            "key":os.environ["GEMINI_API_KEY"]
+
+        },
+
+
+        headers={
+
+            "Content-Type":"application/json"
+
+        },
+
+
+        json={
+
+
+            "contents":[
+
+                {
+
+                    "parts":[
+
+                        {
+
+                            "text":prompt
+
+                        }
+
+                    ]
+
+                }
+
+            ]
+
+        }
+
+
         )
 
-        print("========== RAW AI RESPONSE ==========")
+
+
+
+        print("========== RAW GEMINI RESPONSE ==========")
+
         print(response.text)
-        print("=====================================")
 
-        data = response.json()
+        print("=========================================")
+
+
+
+
+
+        data=response.json()
+
+
+
         if "candidates" not in data:
-            print("Gemini request failed")
-            print(json.dumps(data, indent=2))
-            exit(1)
 
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
+            raise Exception(data)
 
-        match = re.search(r'```json(.*?)```', text, re.S)
+
+
+        text=data["candidates"][0]["content"]["parts"][0]["text"]
+
+
+
+
+
+        match=re.search(
+
+            r"```json(.*?)```",
+
+            text,
+
+            re.S
+
+        )
+
+
 
         if match:
-            json_text = match.group(1).strip()
-        else:
-            json_text = text.strip()
 
-        decision = json.loads(json_text)
+            text=match.group(1).strip()
+
+
+
+
+
         try:
-          decision = json.loads(json_text)
-        except Exception as e:
-          print("Failed to parse AI JSON")
-          print(json_text)
-          raise e
+
+
+            decision=json.loads(text)
+
+
+
+        except Exception:
+
+
+            print("Invalid JSON from AI")
+
+            print(text)
+
+            raise
+
+
+
+
 
         print()
-        print("====================================")
-        print("AI RELEASE DECISION")
-        print("====================================")
-        print("Decision       :", decision.get("decision"))
-        print("Confidence     :", decision.get("confidence"))
-        print("Safe To Apply  :", decision.get("safe_to_apply"))
-        print("Conflicts      :", decision.get("conflicts"))
-        print("Summary        :", decision.get("summary"))
-        print("Warnings       :", decision.get("warnings"))
-        print("====================================")
+
+        print("========== AI DECISION ==========")
+
+
+        print("Decision      :", decision.get("decision"))
+
+        print("Confidence    :", decision.get("confidence"))
+
+        print("Safe Apply    :", decision.get("safe_to_apply"))
+
+        print("Conflicts     :", decision.get("conflicts"))
+
+
+        print()
+
+        print("Summary:")
+
+        print(decision.get("summary"))
+
+
+        print()
+
+        print("Warnings:")
+
+
+        for warning in decision.get("warnings", []):
+
+            print("-",warning)
+
+
+
+        print()
+
+        print("Recommendation:")
+
+        print(decision.get("recommendation"))
+
+
+        print("================================")
+
+
+
 
         with open("ai-decision.json","w") as f:
+
             json.dump(decision,f,indent=2)
 
+
+
+
         if decision.get("decision") == "STOP":
-            print("AI requested workflow stop.")
+
+            print("AI stopped workflow")
+
             exit(1)
+
+
 
         if decision.get("decision") == "MANUAL_REVIEW":
-            print("AI requested manual review.")
+
+            print("AI requires manual review")
+
             exit(1)
 
-        print("AI approved workflow.")
+
+
+
+        print("AI approved synchronization")
+
+
 
         EOF
 
 
 
 
-    - name: Apply merge commit changes excluding github files
+
+    - name: Apply merge changes excluding github files
+
       shell: bash
+
       run: |
+
 
 
         FILES=$(cat changed_files.txt)
@@ -454,20 +562,30 @@ jobs:
 
         do
 
+
           if [[ "$FILE" == .github/* ]]
 
           then
 
-             echo "Ignoring:"
-             echo "$FILE"
+
+            echo "Ignoring workflow file"
+
+            echo "$FILE"
+
 
 
           else
 
-             echo "Applying:"
-             echo "$FILE"
 
-             git checkout "$MERGE_SHA" -- "$FILE"
+            echo "Applying"
+
+            echo "$FILE"
+
+
+
+            git checkout "$MERGE_SHA" -- "$FILE"
+
+
 
           fi
 
@@ -477,31 +595,55 @@ jobs:
 
 
 
-    - name: Remove temporary files
+
+
+    - name: Cleanup temporary files
+
       run: |
+
 
         rm -f ai_analysis.patch
 
         rm -f changed_files.txt
 
+        rm -f ai_prompt.md
+
+        rm -f ai_schema.json
+
+
+
 
 
 
     - name: Commit changes
+
       run: |
 
 
         git add -u
 
 
+
         git commit \
+
         -m "Sync changes from main merge $MERGE_SHA" \
-        || echo "No changes"
+
+        || echo "No changes to commit"
+
+
+
 
 
 
     - name: Push feature branch
+
       run: |
+
+
+        echo "Pushing"
+
+        echo "$FEATURE_BRANCH"
+
 
 
         git push origin "$FEATURE_BRANCH"
