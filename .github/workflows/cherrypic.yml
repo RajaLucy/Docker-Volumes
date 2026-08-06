@@ -1,132 +1,4 @@
-# name : This is AI workflow
-
-# on:
-#   pull_request:
-#     types:
-#       - closed
-#     branches:
-#       - main
-
-
-# jobs:
-#   check-release-version:
-#     if: github.event.pull_request.merged == true
-
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
-#         with:
-#           fetch-depth: 0
-
-#       - name : Set environment variable
-#         run: |
-#           echo "MERGE_SHA=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_ENV
-#           echo "RELEASE_BRANCH=release/v1.0" >> $GITHUB_ENV
-#           echo "FEATURE_BRANCH=feature/release-v1.0" >> $GITHUB_ENV
-
-#       - name : Fetch all branches
-#         run: |
-#           git fetch origin
-
-
-#       - name: Check release branch
-#         run: |
-
-#           echo "Checking release branch: $RELEASE_BRANCH"
-
-#           if git ls-remote --heads origin $RELEASE_BRANCH | grep $RELEASE_BRANCH
-#           then
-#             echo "Release branch exists"
-#           else
-#             echo "ERROR: Release branch does not exist"
-#             exit 1
-#           fi
-
-#       - name: Create release feature branch
-#         run: |
-
-#           echo "Creating branch: $FEATURE_BRANCH"
-
-#           git checkout -b $FEATURE_BRANCH origin/$RELEASE_BRANCH
-
-#           echo "Current branch:"
-#           git branch
-
-#       - name: Apply main changes excluding .github
-#         run: |
-
-#           echo "Merge commit:"
-#           echo $MERGE_SHA
-
-
-#           echo "Finding changed files..."
-
-#           FILES=$(git diff-tree \
-#           --no-commit-id \
-#           --name-only \
-#           -r \
-#           $MERGE_SHA)
-
-
-#           echo "Changed files:"
-#           echo "$FILES"
-
-
-#           for FILE in $FILES
-#           do
-
-#             if [[ "$FILE" == .github/* ]]
-#             then
-#               echo "Ignoring:"
-#               echo $FILE
-
-#             else
-
-#               echo "Applying:"
-#               echo $FILE
-
-#               git checkout $MERGE_SHA -- $FILE
-
-#             fi
-
-#           done
-
-
-
-#       - name: Commit changes
-#         run: |
-
-#           git status
-
-#           git add .
-
-#           git commit -m "Sync changes from main merge $MERGE_SHA" || echo "No changes to commit"
-
-
-
-#       - name: Push release feature branch
-#         run: |
-
-#           git push origin $FEATURE_BRANCH
-
-#       # - name: Cherry pick merge commit
-#       #   run: |
-
-#       #     echo "Cherry picking commit:"
-#       #     echo $MERGE_SHA
-
-#       #     git cherry-pick -m 1 $MERGE_SHA
-#       #   # Push generated branch
-#       # - name: Push release feature branch
-#       #   run: |
-
-#       #     echo "Pushing branch: $FEATURE_BRANCH"
-
-#       #     git push origin $FEATURE_BRANCH
-
-     
-name: Intelligent Cherry Pick Phase 2
+name: Intelligent Cherry Pick With AI Analysis
 
 
 on:
@@ -137,7 +9,6 @@ on:
       - main
 
 
-# Allow workflow to push branches
 permissions:
   contents: write
 
@@ -146,11 +17,10 @@ jobs:
 
   cherry-pick-release:
 
-    # Run only after PR merge
     if: github.event.pull_request.merged == true
 
-
     runs-on: ubuntu-latest
+
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
@@ -158,270 +28,322 @@ jobs:
     steps:
 
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
 
 
-      - name: Configure variables
-        run: |
+    - name: Configure variables
+      run: |
 
-          echo "MERGE_SHA=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_ENV
+        echo "MERGE_SHA=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_ENV
 
-          echo "RELEASE_BRANCH=release/v1.0" >> $GITHUB_ENV
+        echo "RELEASE_BRANCH=release/v1.0" >> $GITHUB_ENV
 
-          echo "FEATURE_BRANCH=feature/release-v1.0" >> $GITHUB_ENV
+        echo "FEATURE_BRANCH=feature/release-v1.0" >> $GITHUB_ENV
 
 
 
-      - name: Fetch all branches
-        run: |
+    - name: Fetch branches
+      run: |
 
-          git fetch origin --prune
+        git fetch origin --prune
 
 
 
-      - name: Check release branch exists
-        run: |
+    - name: Check release branch
+      shell: bash
+      run: |
 
-          echo "Checking release branch:"
-          echo "$RELEASE_BRANCH"
+        echo "Checking:"
+        echo "$RELEASE_BRANCH"
 
 
-          if git ls-remote --heads origin "$RELEASE_BRANCH" | grep "$RELEASE_BRANCH"
-          then
-              echo "Release branch exists"
-          else
-              echo "ERROR: Release branch does not exist"
-              exit 1
-          fi
+        if git ls-remote --heads origin "$RELEASE_BRANCH" | grep "$RELEASE_BRANCH"
+        then
+            echo "Release branch exists"
+        else
+            echo "Release branch missing"
+            exit 1
+        fi
 
 
 
-      - name: Create feature branch from release
-        run: |
 
-          echo "Creating branch:"
-          echo "$FEATURE_BRANCH"
+    - name: Create or checkout feature branch
+      shell: bash
+      run: |
 
 
-          git checkout -b "$FEATURE_BRANCH" "origin/$RELEASE_BRANCH"
+        echo "Checking feature branch"
 
 
-          echo "Current branch:"
-          git branch
+        if git ls-remote --heads origin "$FEATURE_BRANCH" | grep "$FEATURE_BRANCH"
+        then
 
+            echo "Feature branch exists"
 
+            git checkout "$FEATURE_BRANCH"
 
-      - name: Configure git identity
-        run: |
+            git pull origin "$FEATURE_BRANCH"
 
-          git config --global user.name "github-actions"
 
-          git config --global user.email "github-actions@github.com"
+        else
 
+            echo "Creating feature branch"
 
+            git checkout -b "$FEATURE_BRANCH" "origin/$RELEASE_BRANCH"
 
-      - name: Apply changes from main excluding .github
-        shell: bash
-        run: |
+        fi
 
 
-          echo "Merge commit:"
-          echo "$MERGE_SHA"
 
+        git branch
 
-          echo "Finding changed files..."
 
 
-          FILES=$(git diff-tree \
-          --no-commit-id \
-          --name-only \
-          -r \
-          -m \
-          "$MERGE_SHA")
+    - name: Configure git user
+      run: |
 
+        git config user.name "github-actions"
 
-          echo "Changed files:"
-          echo "$FILES"
+        git config user.email "github-actions@github.com"
 
 
 
-          if [ -z "$FILES" ]
-          then
-              echo "No changed files detected"
-              exit 0
-          fi
 
+    - name: Extract changed files from merge commit
+      shell: bash
+      run: |
 
 
-          for FILE in $FILES
-          do
+        echo "Merge commit:"
+        echo "$MERGE_SHA"
 
-              if [[ "$FILE" == .github/* ]]
-              then
 
-                  echo "Ignoring workflow file:"
-                  echo "$FILE"
 
+        FILES=$(git diff-tree \
+        --no-commit-id \
+        --name-only \
+        -r \
+        -m \
+        "$MERGE_SHA")
 
-              else
 
-                  echo "Applying file:"
-                  echo "$FILE"
 
+        echo "$FILES"
 
-                  git checkout "$MERGE_SHA" -- "$FILE"
 
-              fi
 
-          done
+        echo "$FILES" > changed_files.txt
 
-      - name: Prepare AI Analysis Data
-        shell: bash
-        run: |
 
-          echo "Preparing AI input"
 
 
-          git diff \
-          origin/$RELEASE_BRANCH \
-          $MERGE_SHA \
-          -- \
-          ':!.github/*' \
-          > ai_analysis.patch
+    - name: Prepare AI analysis
+      shell: bash
+      run: |
 
 
-          echo "Changed files:"
-          cat ai_analysis.patch
+        echo "Preparing AI input"
 
 
 
-      - name: Gemini AI Code Analysis
-        shell: bash
-        run: |
+        git diff \
+        origin/$RELEASE_BRANCH \
+        $MERGE_SHA \
+        -- \
+        ':!.github/*' \
+        > ai_analysis.patch
 
-          echo "Sending changes to Gemini"
 
 
-          python3 <<EOF
+        echo "===== Changed Files ====="
 
-          import json
-          import os
-          import requests
+        cat changed_files.txt
 
 
-          with open("ai_analysis.patch","r") as f:
-              diff=f.read()
+        echo "===== Diff ====="
 
+        cat ai_analysis.patch
 
-          prompt=f"""
-          You are a senior software engineer.
 
-          Analyze this Git change.
 
-          Source branch:
-          main
 
-          Target branch:
-          release/v1.0
+    - name: Gemini AI Analysis
+      shell: bash
+      run: |
 
 
-          Analyze:
+        python3 <<EOF
 
-          1. What files changed?
-          2. What functions/classes changed?
-          3. Are there compatibility issues?
-          4. Is it safe to apply?
-          5. Possible conflicts?
+        import os
+        import json
+        import requests
 
 
-          Return ONLY JSON:
+        with open("changed_files.txt") as f:
+            files=f.read()
 
-          {{
-            "changed_files":[],
-            "summary":"",
-            "conflicts":false,
-            "safe_to_apply":true,
-            "observations":[]
-          }}
 
+        with open("ai_analysis.patch") as f:
+            diff=f.read()
 
-          Git diff:
 
-          {diff}
-          """
 
+        prompt=f"""
 
-          url="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+        You are a senior software engineer reviewing a release sync.
 
+
+        Source:
+        main
+
+
+        Target:
+        release/v1.0
+
+
+        Changed files:
+
+        {files}
+
+
+        Git diff:
+
+        {diff}
+
+
+
+        Analyze:
+
+        1. Changed files
+        2. Functions/classes modified
+        3. Compatibility issues
+        4. Conflict possibilities
+        5. Safe to apply or not
+
+
+        Return JSON only:
+
+
+        {{
+          "safe_to_apply": true,
+          "conflicts": false,
+          "changed_files": [],
+          "summary": "",
+          "warnings": []
+        }}
+
+        """
+
+
+
+        response=requests.post(
+
+          "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+
+          params={
+            "key":os.environ["GEMINI_API_KEY"]
+          },
 
           headers={
-              "Content-Type":"application/json"
-          }
+            "Content-Type":"application/json"
+          },
 
+          json={
 
-          payload={
-              "contents":[
+            "contents":[
+              {
+                "parts":[
                   {
-                      "parts":[
-                          {
-                              "text":prompt
-                          }
-                      ]
+                    "text":prompt
                   }
-              ]
+                ]
+              }
+            ]
+
           }
 
-
-          response=requests.post(
-              url,
-              headers=headers,
-              params={
-                  "key":os.environ["GEMINI_API_KEY"]
-              },
-              json=payload
-          )
-
-
-          print("======== GEMINI RESPONSE ========")
-
-          print(response.text)
-
-          print("=================================")
-
-
-          EOF
-
-
-      - name: Check changes
-        run: |
-
-          git status
+        )
 
 
 
-      - name: Commit changes
-        run: |
+        print("====================")
+
+        print(response.text)
+
+        print("====================")
 
 
-          git add .
-
-
-          git commit \
-          -m "Sync changes from main merge $MERGE_SHA" \
-          || echo "No changes to commit"
+        EOF
 
 
 
-      - name: Push release feature branch
-        run: |
+
+    - name: Apply merge commit changes excluding github files
+      shell: bash
+      run: |
 
 
-          echo "Pushing branch:"
-          echo "$FEATURE_BRANCH"
+        FILES=$(cat changed_files.txt)
 
 
-          git push origin "$FEATURE_BRANCH"
+
+        for FILE in $FILES
+
+        do
+
+          if [[ "$FILE" == .github/* ]]
+
+          then
+
+             echo "Ignoring:"
+             echo "$FILE"
+
+
+          else
+
+             echo "Applying:"
+             echo "$FILE"
+
+             git checkout "$MERGE_SHA" -- "$FILE"
+
+          fi
+
+
+        done
+
+
+
+
+    - name: Remove temporary files
+      run: |
+
+        rm -f ai_analysis.patch
+
+        rm -f changed_files.txt
+
+
+
+
+    - name: Commit changes
+      run: |
+
+
+        git add -u
+
+
+        git commit \
+        -m "Sync changes from main merge $MERGE_SHA" \
+        || echo "No changes"
+
+
+
+    - name: Push feature branch
+      run: |
+
+
+        git push origin "$FEATURE_BRANCH"
