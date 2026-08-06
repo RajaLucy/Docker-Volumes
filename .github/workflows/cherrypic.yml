@@ -206,6 +206,7 @@ jobs:
         $MERGE_SHA \
         -- \
         ':!.github/*' \
+        ':!ai/*' \
         > ai_analysis.patch
 
 
