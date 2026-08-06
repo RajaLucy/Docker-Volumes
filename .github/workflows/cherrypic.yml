@@ -546,52 +546,31 @@ jobs:
 
 
 
-    - name: Apply merge changes excluding github files
-
+    - name: Apply merge changes excluding system files
       shell: bash
-
       run: |
-
-
 
         FILES=$(cat changed_files.txt)
 
-
-
         for FILE in $FILES
-
         do
 
-
-          if [[ "$FILE" == .github/* ]]
-
+          if [[ "$FILE" == .github/* ]] || [[ "$FILE" == ai/* ]]
           then
 
-
-            echo "Ignoring workflow file"
-
+            echo "Ignoring:"
             echo "$FILE"
-
-
 
           else
 
-
-            echo "Applying"
-
+            echo "Applying:"
             echo "$FILE"
-
-
 
             git checkout "$MERGE_SHA" -- "$FILE"
 
-
-
           fi
 
-
         done
-
 
 
 
@@ -616,19 +595,24 @@ jobs:
 
 
     - name: Commit changes
-
+      shell: bash
       run: |
 
+        echo "Preparing commit"
+
+        git status
 
         git add -u
 
 
+        if git diff --cached --quiet
+        then
+            echo "No changes to commit"
+        else
 
-        git commit \
+            git commit -m "Sync changes from main merge $MERGE_SHA"
 
-        -m "Sync changes from main merge $MERGE_SHA" \
-
-        || echo "No changes to commit"
+        fi
 
 
 
