@@ -53,19 +53,76 @@ jobs:
           echo "Current branch:"
           git branch
 
-      - name: Cherry pick merge commit
+      - name: Apply main changes excluding .github
         run: |
 
-          echo "Cherry picking commit:"
+          echo "Merge commit:"
           echo $MERGE_SHA
 
-          git cherry-pick -m 1 $MERGE_SHA
-        # Push generated branch
+
+          echo "Finding changed files..."
+
+          FILES=$(git diff-tree \
+          --no-commit-id \
+          --name-only \
+          -r \
+          $MERGE_SHA)
+
+
+          echo "Changed files:"
+          echo "$FILES"
+
+
+          for FILE in $FILES
+          do
+
+            if [[ "$FILE" == .github/* ]]
+            then
+              echo "Ignoring:"
+              echo $FILE
+
+            else
+
+              echo "Applying:"
+              echo $FILE
+
+              git checkout $MERGE_SHA -- $FILE
+
+            fi
+
+          done
+
+
+
+      - name: Commit changes
+        run: |
+
+          git status
+
+          git add .
+
+          git commit -m "Sync changes from main merge $MERGE_SHA" || echo "No changes to commit"
+
+
+
       - name: Push release feature branch
         run: |
 
-          echo "Pushing branch: $FEATURE_BRANCH"
-
           git push origin $FEATURE_BRANCH
+
+      # - name: Cherry pick merge commit
+      #   run: |
+
+      #     echo "Cherry picking commit:"
+      #     echo $MERGE_SHA
+
+      #     git cherry-pick -m 1 $MERGE_SHA
+      #   # Push generated branch
+      # - name: Push release feature branch
+      #   run: |
+
+      #     echo "Pushing branch: $FEATURE_BRANCH"
+
+      #     git push origin $FEATURE_BRANCH
 
      
