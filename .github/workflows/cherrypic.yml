@@ -142,14 +142,37 @@ jobs:
 
 
 
+    # - name: Prepare AI analysis
+    #   shell: bash
+    #   run: |
+
+
+    #     echo "Preparing AI input"
+
+
+
+    #     git diff \
+    #     origin/$RELEASE_BRANCH \
+    #     $MERGE_SHA \
+    #     -- \
+    #     ':!.github/*' \
+    #     > ai_analysis.patch
+
+
+
+    #     echo "===== Changed Files ====="
+
+    #     cat changed_files.txt
+
+
+    #     echo "===== Diff ====="
+
+    #     cat ai_analysis.patch
     - name: Prepare AI analysis
       shell: bash
       run: |
 
-
         echo "Preparing AI input"
-
-
 
         git diff \
         origin/$RELEASE_BRANCH \
@@ -158,125 +181,260 @@ jobs:
         ':!.github/*' \
         > ai_analysis.patch
 
-
-
         echo "===== Changed Files ====="
-
         cat changed_files.txt
 
-
         echo "===== Diff ====="
-
         cat ai_analysis.patch
 
+        echo "===== Loading AI Prompt ====="
+        cat ai/prompts/decision.md
+
+        echo "===== Loading AI Schema ====="
+        cat ai/schemas/decision-schema.json
 
 
 
-    - name: Gemini AI Analysis
+    # - name: Gemini AI Analysis
+    #   shell: bash
+    #   run: |
+
+
+    #     python3 <<EOF
+
+    #     import os
+    #     import json
+    #     import requests
+
+
+    #     with open("changed_files.txt") as f:
+    #         files=f.read()
+
+
+    #     with open("ai_analysis.patch") as f:
+    #         diff=f.read()
+
+
+
+    #     prompt=f"""
+
+    #     You are a senior software engineer reviewing a release sync.
+
+
+    #     Source:
+    #     main
+
+
+    #     Target:
+    #     release/v1.0
+
+
+    #     Changed files:
+
+    #     {files}
+
+
+    #     Git diff:
+
+    #     {diff}
+
+
+
+    #     Analyze:
+
+    #     1. Changed files
+    #     2. Functions/classes modified
+    #     3. Compatibility issues
+    #     4. Conflict possibilities
+    #     5. Safe to apply or not
+
+
+    #     Return JSON only:
+
+
+    #     {{
+    #       "safe_to_apply": true,
+    #       "conflicts": false,
+    #       "changed_files": [],
+    #       "summary": "",
+    #       "warnings": []
+    #     }}
+
+    #     """
+
+
+
+    #     response=requests.post(
+
+    #       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+
+    #       params={
+    #         "key":os.environ["GEMINI_API_KEY"]
+    #       },
+
+    #       headers={
+    #         "Content-Type":"application/json"
+    #       },
+
+    #       json={
+
+    #         "contents":[
+    #           {
+    #             "parts":[
+    #               {
+    #                 "text":prompt
+    #               }
+    #             ]
+    #           }
+    #         ]
+
+    #       }
+
+    #     )
+
+
+
+    #     print("====================")
+
+    #     print(response.text)
+
+    #     print("====================")
+
+
+    #     EOF
+
+    - name: Gemini AI Decision Engine
       shell: bash
       run: |
-
 
         python3 <<EOF
 
         import os
         import json
         import requests
+        import re
 
+        with open("ai/prompts/decision.md") as f:
+            system_prompt = f.read()
+
+        with open("ai/schemas/decision-schema.json") as f:
+            schema = f.read()
 
         with open("changed_files.txt") as f:
-            files=f.read()
-
+            files = f.read()
 
         with open("ai_analysis.patch") as f:
-            diff=f.read()
+            patch = f.read()
 
 
+        final_prompt = f"""
+        {system_prompt}
 
-        prompt=f"""
+        ========================================
 
-        You are a senior software engineer reviewing a release sync.
+        Expected JSON Schema
 
+        {schema}
 
-        Source:
+        ========================================
+
+        Source Branch
+
         main
 
+        Target Branch
 
-        Target:
         release/v1.0
 
+        ========================================
 
-        Changed files:
+        Changed Files
 
         {files}
 
+        ========================================
 
-        Git diff:
+        Git Patch
 
-        {diff}
-
-
-
-        Analyze:
-
-        1. Changed files
-        2. Functions/classes modified
-        3. Compatibility issues
-        4. Conflict possibilities
-        5. Safe to apply or not
-
-
-        Return JSON only:
-
-
-        {{
-          "safe_to_apply": true,
-          "conflicts": false,
-          "changed_files": [],
-          "summary": "",
-          "warnings": []
-        }}
-
+        {patch}
         """
 
+        response = requests.post(
 
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
 
-        response=requests.post(
+            params={
+                "key": os.environ["GEMINI_API_KEY"]
+            },
 
-          "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+            headers={
+                "Content-Type":"application/json"
+            },
 
-          params={
-            "key":os.environ["GEMINI_API_KEY"]
-          },
-
-          headers={
-            "Content-Type":"application/json"
-          },
-
-          json={
-
-            "contents":[
-              {
-                "parts":[
-                  {
-                    "text":prompt
-                  }
+            json={
+                "contents":[
+                    {
+                        "parts":[
+                            {
+                                "text": final_prompt
+                            }
+                        ]
+                    }
                 ]
-              }
-            ]
-
-          }
-
+            }
         )
 
-
-
-        print("====================")
-
+        print("========== RAW AI RESPONSE ==========")
         print(response.text)
+        print("=====================================")
 
-        print("====================")
+        data = response.json()
+        if "candidates" not in data:
+            print("Gemini request failed")
+            print(json.dumps(data, indent=2))
+            exit(1)
 
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
+
+        match = re.search(r'```json(.*?)```', text, re.S)
+
+        if match:
+            json_text = match.group(1).strip()
+        else:
+            json_text = text.strip()
+
+        decision = json.loads(json_text)
+        try:
+          decision = json.loads(json_text)
+        except Exception as e:
+          print("Failed to parse AI JSON")
+          print(json_text)
+          raise e
+
+        print()
+        print("====================================")
+        print("AI RELEASE DECISION")
+        print("====================================")
+        print("Decision       :", decision.get("decision"))
+        print("Confidence     :", decision.get("confidence"))
+        print("Safe To Apply  :", decision.get("safe_to_apply"))
+        print("Conflicts      :", decision.get("conflicts"))
+        print("Summary        :", decision.get("summary"))
+        print("Warnings       :", decision.get("warnings"))
+        print("====================================")
+
+        with open("ai-decision.json","w") as f:
+            json.dump(decision,f,indent=2)
+
+        if decision.get("decision") == "STOP":
+            print("AI requested workflow stop.")
+            exit(1)
+
+        if decision.get("decision") == "MANUAL_REVIEW":
+            print("AI requested manual review.")
+            exit(1)
+
+        print("AI approved workflow.")
 
         EOF
 
