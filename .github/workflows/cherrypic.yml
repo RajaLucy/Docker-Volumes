@@ -25,9 +25,9 @@ jobs:
 
   cherry-pick-release:
 
-  permissions:
-      contents: write
-      pull-requests: write
+    permissions:
+        contents: write
+        pull-requests: write
 
 
     if: github.event.pull_request.merged == true
@@ -126,7 +126,7 @@ jobs:
 
           git checkout "$FEATURE_BRANCH"
 
-          git pull origin "$FEATURE_BRANCH"
+          git pull --ff-only origin "$FEATURE_BRANCH"
 
 
 
@@ -677,23 +677,17 @@ jobs:
         git push origin "$FEATURE_BRANCH"
 
 
-    - name: Check permissions
-      shell: bash
-      run: |
-        echo "Repository: $GITHUB_REPOSITORY"
-        gh auth status
-
-    - name: Authenticate GitHub CLI
+    - name: Verify GitHub CLI
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
-
       run: |
 
-        echo "Authenticating gh CLI"
+        echo "Repository: $GITHUB_REPOSITORY"
 
         gh auth status
-      
+            
+          
 
     - name: Create Pull Request
       shell: bash
