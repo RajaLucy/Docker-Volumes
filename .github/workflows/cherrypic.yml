@@ -271,7 +271,7 @@ jobs:
       run: |
 
 
-        python3 <<EOF
+        python3 <<'EOF'
 
 
         import os
@@ -428,21 +428,13 @@ jobs:
 
 
 
-        match=re.search(
+        json_text = text.strip()
 
-            r"```json(.*?)```",
+        if "```json" in json_text:
+            json_text = json_text.replace("```json", "")
+            json_text = json_text.replace("```", "")
 
-            text,
-
-            re.S
-
-        )
-
-
-
-        if match:
-
-            text=match.group(1).strip()
+        json_text = json_text.strip()
 
 
 
