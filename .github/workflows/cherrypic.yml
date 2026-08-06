@@ -25,6 +25,10 @@ jobs:
 
   cherry-pick-release:
 
+  permissions:
+      contents: write
+      pull-requests: write
+
 
     if: github.event.pull_request.merged == true
 
@@ -678,6 +682,18 @@ jobs:
       run: |
         echo "Repository: $GITHUB_REPOSITORY"
         gh auth status
+
+    - name: Authenticate GitHub CLI
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+      run: |
+
+        echo "Authenticating gh CLI"
+
+        gh auth status
+      
 
     - name: Create Pull Request
       shell: bash
