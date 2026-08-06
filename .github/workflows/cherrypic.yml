@@ -151,6 +151,8 @@ jobs:
 
 
     runs-on: ubuntu-latest
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
 
     steps:
@@ -277,6 +279,121 @@ jobs:
 
           done
 
+      - name: Prepare AI Analysis Data
+        shell: bash
+        run: |
+
+          echo "Preparing AI input"
+
+
+          git diff \
+          origin/$RELEASE_BRANCH \
+          $MERGE_SHA \
+          -- \
+          ':!.github/*' \
+          > ai_analysis.patch
+
+
+          echo "Changed files:"
+          cat ai_analysis.patch
+
+
+
+      - name: Gemini AI Code Analysis
+        shell: bash
+        run: |
+
+          echo "Sending changes to Gemini"
+
+
+          python3 <<EOF
+
+          import json
+          import os
+          import requests
+
+
+          with open("ai_analysis.patch","r") as f:
+              diff=f.read()
+
+
+          prompt=f"""
+          You are a senior software engineer.
+
+          Analyze this Git change.
+
+          Source branch:
+          main
+
+          Target branch:
+          release/v1.0
+
+
+          Analyze:
+
+          1. What files changed?
+          2. What functions/classes changed?
+          3. Are there compatibility issues?
+          4. Is it safe to apply?
+          5. Possible conflicts?
+
+
+          Return ONLY JSON:
+
+          {{
+            "changed_files":[],
+            "summary":"",
+            "conflicts":false,
+            "safe_to_apply":true,
+            "observations":[]
+          }}
+
+
+          Git diff:
+
+          {diff}
+          """
+
+
+          url="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+
+
+          headers={
+              "Content-Type":"application/json"
+          }
+
+
+          payload={
+              "contents":[
+                  {
+                      "parts":[
+                          {
+                              "text":prompt
+                          }
+                      ]
+                  }
+              ]
+          }
+
+
+          response=requests.post(
+              url,
+              headers=headers,
+              params={
+                  "key":os.environ["GEMINI_API_KEY"]
+              },
+              json=payload
+          )
+
+
+          print("======== GEMINI RESPONSE ========")
+
+          print(response.text)
+
+          print("=================================")
+
+
+          EOF
 
 
       - name: Check changes
