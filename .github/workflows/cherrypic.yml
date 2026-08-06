@@ -673,6 +673,12 @@ jobs:
         git push origin "$FEATURE_BRANCH"
 
 
+    - name: Check permissions
+      shell: bash
+      run: |
+        echo "Repository: $GITHUB_REPOSITORY"
+        gh auth status
+
     - name: Create Pull Request
       shell: bash
       env:
