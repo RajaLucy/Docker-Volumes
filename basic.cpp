@@ -13,7 +13,7 @@ cout << "This is Phase 2.5 changes" << endl;
 cout << "This is Phase 2.5.1 changes" << endl;
  cout << "This is Phase 3 changes" << endl;
 cout << "This is Phase 4 changes [Desicion]" << endl;
-cout << "This is Phase 4.5 changes [Desicion]" << endl;
+cout << "This is Phase 4.5 changes" << endl;
 }
 
 int main(){
