@@ -18,6 +18,9 @@ cout << "This is Phase 4.5.5 almost changes [decision]" << endl;
 cout << "This is Phase 5 almost changes [decision] Pr creation added now" << endl;
 }
 
+void wish(){
+    cout << "This is my wish()" << endl;
+}
 int main(){
 
 int n=5;
