@@ -216,7 +216,14 @@ jobs:
 
 
 
-        git show "$MERGE_SHA:ai/prompts/decision.md" > ai_prompt.md
+        if git show "$MERGE_SHA:ai/prompts/decision.md" > ai_prompt.md
+        then
+          echo "Prompt loaded from merge commit"
+        else
+          echo "Prompt missing"
+          exit 1
+        
+        fi
 
 
 
@@ -444,7 +451,7 @@ jobs:
         try:
 
 
-            decision=json.loads(text)
+            decision=json.loads(json_text)
 
 
 
@@ -453,7 +460,7 @@ jobs:
 
             print("Invalid JSON from AI")
 
-            print(text)
+            print(json_text)
 
             raise
 

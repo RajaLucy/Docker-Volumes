@@ -120,3 +120,13 @@ Return JSON only.
 
 This is a demo environment.
 Prefer CONTINUE unless a real git conflict exists.
+
+## Output Rules
+
+Return ONLY valid JSON.
+
+DO NOT use:
+- ```json
+- markdown fences
+- explanations before JSON
+- explanations after JSON
