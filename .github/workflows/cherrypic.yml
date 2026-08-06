@@ -1,0 +1,44 @@
+name : This is AI workflow
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+
+jobs:
+  check-release-version:
+    if: github.event.pull_request.merged == true
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get Merge commit
+        run: |
+          echo "Merge Commit:"
+          echo ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Check release branch
+        shell: bash
+        run: |
+
+          RELEASE_BRANCH="release/v1.0"
+
+          echo "Checking branch: $RELEASE_BRANCH"
+
+
+          if git ls-remote --heads origin $RELEASE_BRANCH | grep $RELEASE_BRANCH
+          then
+              echo "Release branch exists"
+          else
+              echo "Release branch does not exist"
+              exit 1
+          fi
+
+     
