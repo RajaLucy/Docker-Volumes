@@ -15,12 +15,13 @@ cout << "This is Phase 2.5.1 changes" << endl;
 cout << "This is Phase 4 changes [Desicion]" << endl;
 cout << "This is Phase 4.5 changes [decision]" << endl;
 cout << "This is Phase 4.5.5 almost changes [decision]" << endl;
-cout << "This is Phase 5 almost changes [decision] Pr creation added not now" << endl;
+cout << "This is Phase 5 almost changes [decision] Pr creation added current add" << endl;
 }
 
 
-void wish(){
+int wish(){
 cout << "This is void Function for wishing" << endl;    
+return 0;
 
 }
 
