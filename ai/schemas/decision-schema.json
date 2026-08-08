@@ -8,3 +8,315 @@
   "warnings": [],
   "recommendation": ""
 }
+
+
+{
+"type": "object",
+"additionalProperties": false,
+"properties": {
+"mode": {
+"type": "string",
+"enum": ["AUTO", "MANUAL"]
+},
+"decision": {
+"type": "string",
+"enum": ["CONTINUE", "RESOLVE", "MANUAL_REVIEW", "STOP"]
+},
+"safe_to_apply": {
+"type": "boolean"
+},
+"confidence": {
+"type": "integer",
+"minimum": 0,
+"maximum": 100
+},
+"summary": {
+"type": "string"
+},
+"warnings": {
+"type": "array",
+"items": {
+"type": "string"
+}
+},
+"analysis": {
+"type": "object",
+"additionalProperties": false,
+"properties": {
+"target_branch": {
+"type": "string"
+},
+"source_branch": {
+"type": "string"
+},
+"merge_base": {
+"type": "string"
+},
+"merge_commit": {
+"type": "string"
+},
+"changed_files": {
+"type": "integer"
+},
+"conflicted_files": {
+"type": "integer"
+},
+"target_summary": {
+"type": "string"
+},
+"source_summary": {
+"type": "string"
+},
+"merge_summary": {
+"type": "string"
+}
+},
+"required": [
+"target_branch",
+"source_branch",
+"merge_base",
+"merge_commit",
+"changed_files",
+"conflicted_files",
+"target_summary",
+"source_summary",
+"merge_summary"
+]
+},
+"files": {
+"type": "array",
+"items": {
+"type": "object",
+"additionalProperties": false,
+"properties": {
+"file": {
+"type": "string"
+},
+"change_type": {
+"type": "string",
+"enum": [
+"ADDED",
+"MODIFIED",
+"DELETED",
+"RENAMED",
+"CONFLICTED",
+"UNCHANGED"
+]
+},
+"conflict": {
+"type": "boolean"
+},
+"affected_lines": {
+"type": "array",
+"items": {
+"type": "string"
+}
+},
+"affected_functions": {
+"type": "array",
+"items": {
+"type": "string"
+}
+},
+"target_behavior": {
+"type": "string"
+},
+"source_behavior": {
+"type": "string"
+},
+"merge_behavior": {
+"type": "string"
+},
+"analysis": {
+"type": "string"
+},
+"resolution_strategy": {
+"type": "string"
+},
+"risk": {
+"type": "string",
+"enum": ["LOW", "MEDIUM", "HIGH", "UNKNOWN"]
+}
+},
+"required": [
+"file",
+"change_type",
+"conflict",
+"affected_lines",
+"affected_functions",
+"target_behavior",
+"source_behavior",
+"merge_behavior",
+"analysis",
+"resolution_strategy",
+"risk"
+]
+}
+},
+"resolutions": {
+"type": "array",
+"items": {
+"type": "object",
+"additionalProperties": false,
+"properties": {
+"file": {
+"type": "string"
+},
+"conflict_id": {
+"type": "string"
+},
+"affected_lines": {
+"type": "array",
+"items": {
+"type": "string"
+}
+},
+"affected_functions": {
+"type": "array",
+"items": {
+"type": "string"
+}
+},
+"target_code_analysis": {
+"type": "string"
+},
+"source_code_analysis": {
+"type": "string"
+},
+"merge_base_analysis": {
+"type": "string"
+},
+"conflict_analysis": {
+"type": "string"
+},
+"resolution_strategy": {
+"type": "string",
+"enum": [
+"KEEP_TARGET",
+"KEEP_SOURCE",
+"COMBINE",
+"REWRITE_CONFLICT_REGION",
+"DELETE_FILE",
+"MANUAL_REVIEW"
+]
+},
+"reason": {
+"type": "string"
+},
+"resolved_content": {
+"type": "string"
+},
+"confidence": {
+"type": "integer",
+"minimum": 0,
+"maximum": 100
+},
+"safe_to_apply": {
+"type": "boolean"
+},
+"validation": {
+"type": "object",
+"additionalProperties": false,
+"properties": {
+"conflict_markers_removed": {
+"type": "boolean"
+},
+"syntax_expected_valid": {
+"type": "boolean"
+},
+"target_behavior_preserved": {
+"type": "boolean"
+},
+"source_behavior_preserved": {
+"type": "boolean"
+},
+"internal_consistency": {
+"type": "boolean"
+},
+"notes": {
+"type": "string"
+}
+},
+"required": [
+"conflict_markers_removed",
+"syntax_expected_valid",
+"target_behavior_preserved",
+"source_behavior_preserved",
+"internal_consistency",
+"notes"
+]
+},
+"manual_steps": {
+"type": "array",
+"items": {
+"type": "string"
+}
+},
+"warnings": {
+"type": "array",
+"items": {
+"type": "string"
+}
+}
+},
+"required": [
+"file",
+"conflict_id",
+"affected_lines",
+"affected_functions",
+"target_code_analysis",
+"source_code_analysis",
+"merge_base_analysis",
+"conflict_analysis",
+"resolution_strategy",
+"reason",
+"resolved_content",
+"confidence",
+"safe_to_apply",
+"validation",
+"manual_steps",
+"warnings"
+]
+}
+},
+"manual_review": {
+"type": "object",
+"additionalProperties": false,
+"properties": {
+"required": {
+"type": "boolean"
+},
+"reason": {
+"type": "string"
+},
+"steps": {
+"type": "array",
+"items": {
+"type": "string"
+}
+}
+},
+"required": [
+"required",
+"reason",
+"steps"
+]
+},
+"recommendation": {
+"type": "string"
+}
+},
+"required": [
+"mode",
+"decision",
+"safe_to_apply",
+"confidence",
+"summary",
+"warnings",
+"analysis",
+"files",
+"resolutions",
+"manual_review",
+"recommendation"
+]
+}
