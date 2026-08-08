@@ -19,8 +19,9 @@ cout << "This is Phase 5 almost changes [decision] Pr creation added now" << end
 }
 
 
-void wish(){
+int wish(){
 cout << "This is void Function for wishing" << endl;    
+return 0;
 
 }
 
